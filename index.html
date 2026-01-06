@@ -1,0 +1,431 @@
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+    <title>Boring Log Viewer</title>
+    <link href="css/boring_log_viewer.css" rel="stylesheet" type="text/css" />
+
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="js/get_hatch_code.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="js/script.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dom-to-image-more@2.8.0/dist/dom-to-image-more.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/canvg/3.0.9/umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+    <script src="js/screenshot.js" defer></script>
+    <script>
+        $(document).ready(function () {
+            // Add event listener to hide the form when the button is clicked
+            document.getElementById("hideButton").addEventListener("click", function () {
+                document.getElementById("Top_form").style.display = "none";
+            });
+        });
+    </script>
+    <script type="module">
+
+        import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+        function get_axis(width, height, marginTop, marginRight, marginBottom, marginLeft, minDepth, maxDepth) {
+            // Declare the x (horizontal position) scale.
+            const x = d3.scaleLinear()
+                .domain([0, 1])
+                .range([marginLeft, width - marginRight]);
+
+            // Declare the y (vertical position) scale.
+            const y = d3.scaleLinear()
+                .domain([maxDepth, minDepth])
+                .range([height, 0]);
+
+            // Create the SVG container and apply right alignment using transform.
+            const svg = d3.create("svg")
+                .attr("width", width)
+                .attr("height", height)
+                // .attr("style", "display: flex")  // Right-aligns the SVG.
+
+            // Add the y-axis.
+            svg.append("g")
+                .attr("transform", `translate(${width - marginLeft}, 5)`) // Shift the y-axis to the right.
+                .call(d3.axisLeft(y));
+
+            return svg;
+        }
+        function append_text(text, element, style){
+            const text_p = document.createElement("p");
+            if(!text){
+                text = '-';
+                style += ' visibility: hidden';
+            }
+            text_p.innerHTML = text;
+            text_p.setAttribute("style", style);
+            document.getElementById(element).appendChild(text_p);
+        }
+        function append_svg(data, element, style){
+            const obj = document.createElement("object");
+            obj.setAttribute("data", data);
+            obj.setAttribute("type", "image/svg+xml");
+            obj.setAttribute("style", style);
+            document.getElementById(element).appendChild(obj);
+        }
+    
+        
+        $( document ).ready(function() {
+            $.fn.json_beautify= function() {
+                this.each(function(){
+                    var el = $(this),
+                        obj = JSON.parse(el.val()),
+                        pretty = JSON.stringify(obj, undefined, 4);
+                    el.val(pretty);
+                });
+            };
+            $('#boringlogjson').json_beautify();
+            $('#pretty').click(function(){
+                $('#boringlogjson').json_beautify();
+            });
+            $('#plot').click(function() {
+                let data = JSON.parse($('#boringlogjson').val());
+                // compute height required based on sum of heights of text elements.
+
+                let width = parseInt($('#width').val());  // Convert the string to an integer
+                let minWidth = 800;
+                let maxWidth = 100000;  
+
+                let errorElement = $('#width-error');  // Select the error message container
+
+                // Clear any previous error message
+                errorElement.hide();
+
+                // Validate the width value to ensure it respects the min and max
+                if (width < minWidth) {
+                    width = minWidth;
+                    errorElement.show();
+                } else if (width > maxWidth) {
+                    width = maxWidth;
+                }
+
+                let dynamicFontSize = $('#font_size').val();
+                let axis_width = 3 * width / 39;
+                let soil_desc_width = width * 8 / 37;
+                let internal_blow_count_width = width * 2.5 / 37;
+                let height = $('#height').val();
+                let marginTop = 20;
+                let marginRight = 10;
+                let marginLeft = 25;
+                let marginBottom = 20;
+                let scale = (width / 32) / 104;
+
+                $('#grid-container-header').width(width);
+                $('#grid-container-boring').width(width);
+                $('#grid-container-boring').height(height + 150);
+                $("#NSF").width(width/2)
+                $("#Logo_1").width(width/6)
+                $("#Logo_2").width(width/6)
+                $("#Logo_3").width(width/6)
+
+                document.getElementById('soil_description_hidden').innerHTML = '';
+                $("#project_name").html('<strong>Project Name: </strong>' + data['borehole_metadata']['project_name']);
+                $("#site_name").html('<strong>Site Name: </strong>' + data['borehole_metadata']['site_name']);
+                $("#borehole_name").html('<strong>Borehole Name: </strong>' + data['borehole_metadata']['borehole_name']);
+                $("#latitude").html('<strong>Latitude: </strong>' + data['borehole_metadata']['latitude'] + '°');
+                $("#longitude").html('<strong>Longitude: </strong>' + data['borehole_metadata']['longitude'] + '°');
+                $("#date").html('<strong>Date of Exploration: </strong>' + data['borehole_metadata']['date']);
+                $("#borehole_type").html('<strong>Boring Type: </strong>' + data['borehole_metadata']['borehole_type']);
+                $("#borehole_diameter").html('<strong>Borehole Diameter [m]: </strong>' + data['borehole_metadata']['borehole_diameter']);
+                $("#rig").html('<strong>Drill Rig Type: </strong>' + data['borehole_metadata']['rig']);
+                $("#logger").html('<strong>Logged by: </strong>' + data['borehole_metadata']['logger']);
+                $("#groundwater_depth").html('<strong>Groundwater Table (m): </strong>' + data['borehole_metadata']['groundwater_depth']);
+                $("#depth_of_exploration").html('<strong>Depth of Exploration (m): </strong>' + Math.max(...data['stratigraphy']['stratum_depth_bottom']));
+                let minDepth = Math.min(...data['stratigraphy']['stratum_depth_top']);
+                let maxDepth = Math.max(...data['stratigraphy']['stratum_depth_bottom']);
+                let usableHeight = height - marginTop - marginBottom;
+                let conv = usableHeight / (maxDepth - minDepth);
+                let hatch_code = '';
+                let textHeights = [];
+                let layerHeights = [];
+                document.getElementById('soil_description').innerHTML = '';
+                document.getElementById('soil_hatches').innerHTML = '';
+                let textHeight = 0;
+                for (let i = 0; i < data['stratigraphy']['soil_description'].length; i++) {
+                    hatch_code = get_hatch_code(data['stratigraphy']['soil_description'][i]);
+                    let top_depth = data['stratigraphy']['stratum_depth_top'][i];
+                    let bottom_depth = data['stratigraphy']['stratum_depth_bottom'][i];
+                    let layer_height = (bottom_depth - top_depth) * conv;
+                    append_svg("images/" + hatch_code + ".svg?scale=" + scale, 'soil_hatches_hidden', "border: 1px solid black; width: 100%; height: " + layer_height + "px");
+                    layerHeights.push($('#soil_hatches_hidden').height());
+                    let child_obj = document.getElementById('soil_hatches_hidden').lastChild;
+                    document.getElementById('soil_hatches_hidden').removeChild(child_obj);
+                    append_text(data['stratigraphy']['soil_description'][i], 'soil_description_hidden', 'width: 100%; height: 100%; font-size: 10px;');
+                    textHeights.push($('#soil_description_hidden').height());
+                    textHeight += textHeights[i];
+                    let child = document.getElementById('soil_description_hidden').lastChild;
+                    document.getElementById('soil_description_hidden').removeChild(child);
+                }
+
+                height = Math.max(height, textHeight + marginTop + marginBottom);
+                $('#grid-container-boring').height(height + 150);
+                usableHeight = height - marginTop - marginBottom;
+                conv = usableHeight / (maxDepth - minDepth);
+                let svg = get_axis(axis_width, usableHeight, marginTop, marginRight, marginBottom, marginLeft, minDepth, maxDepth);
+                $('#depth_axis').html(svg.node());
+
+                let cumulative_text_height = -1;
+                let cumulative_layer_height = -1;
+                const text_fields = ['soil_description', 'soil_hatches', 'soil_classification', 'sample_hatches', 'sample_description', 'sampler_outer_diameter', 'sampler_inner_diameter', 'internal_blow_count', 'blow_count', 'energy_ratio', 'rod_length', 'liquid_limit', 'plastic_limit', 'dry_unit_weight', 'water_content', 'shear_strength', 'shear_strength_method'];
+                for (let i=0; i<text_fields.length; i++){
+                    document.getElementById(text_fields[i]).innerHTML = '';
+                }
+                let layer_lines = '<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"  width="' + String(soil_desc_width) + 'px" height="' + String(usableHeight) + 'px" xml:space="preserve">';
+                for (let i = 0; i < layerHeights.length; i++) {
+                    let top_depth = data['stratigraphy']['stratum_depth_top'][i];
+                    let bottom_depth = data['stratigraphy']['stratum_depth_bottom'][i];
+                    let layer_height = (bottom_depth - top_depth) * conv;
+                    layer_lines += '<line x1="0" y1="' + cumulative_layer_height + '" x2 = "' + String(0.05*soil_desc_width) + '" y2="' + cumulative_text_height + '" style="stroke:black; stroke-width:1.0" />';
+                    layer_lines += '<line x1="' + String(0.05*soil_desc_width) + '" y1="' + cumulative_text_height + '" x2 = "' + String(0.95*soil_desc_width) + '" y2="' + cumulative_text_height + '" style="stroke:black; stroke-width:1.0" />';
+                    layer_lines += '<line x1="' + String(0.95*soil_desc_width) + '" y1="' + cumulative_text_height + '" x2 = "' + String(0.99*soil_desc_width) + '" y2="' + cumulative_layer_height + '" style="stroke:black; stroke-width:1.0" />';
+                    let text_height = Math.max(textHeights[i], layer_height - (cumulative_text_height - cumulative_layer_height));
+                    cumulative_text_height += text_height;
+                    cumulative_layer_height += layer_height;
+                }
+				// Add groundwater path element
+				//layer_lines += '<polygon points=' + String(0.975*soil_desc_width) + ',' + String(data['stratigraphy']['groundwater_depth'] * conv) + ' ' + String(0.96*soil_desc_width) + ',' + String(data['stratigraphy']['groundwater_depth'] * conv - 10) + " " + String(0.99*soil_desc_width) + ',' + String(data['stratigraphy']['groundwater_depth'] * conv - 10) + '" style="stroke: black; stroke-width: 2" />';
+				//alert('<polygon points=' + String(0.975*soil_desc_width) + ',' + String(data['stratigraphy']['groundwater_depth'] * conv) + ' ' + String(0.96*soil_desc_width) + ',' + String(data['stratigraphy']['groundwater_depth'] * conv - 10) + " " + String(0.99*soil_desc_width) + ',' + String(Math.round(data['stratigraphy']['groundwater_depth'] * conv) - 10) + '" style="stroke: black; stroke-width: 2" />');
+                
+				// layer_lines_gwt = '<line x1="' + String(0.95*soil_desc_width) + '" y1="' + String(data['borehole_metadata']['groundwater_depth'] * conv) + '" x2 ="' + String(0.92*soil_desc_width) + '" y2="' + String(data['borehole_metadata']['groundwater_depth'] * conv - 10) + '" style="stroke: black; stroke-width: 2" />';
+				// layer_lines_gwt += '<line x1="' + String(0.95*soil_desc_width) + '" y1="' + String(data['borehole_metadata']['groundwater_depth'] * conv) + '" x2 ="' + String(0.98*soil_desc_width) + '" y2="' + String(data['borehole_metadata']['groundwater_depth'] * conv - 10) + '" style="stroke: black; stroke-width: 2" />';
+				// layer_lines_gwt += '<line x1="' + String(0.92*soil_desc_width) + '" y1="' + String(data['borehole_metadata']['groundwater_depth'] * conv - 10) + '" x2 ="' + String(0.98*soil_desc_width) + '" y2="' + String(data['borehole_metadata']['groundwater_depth'] * conv - 10) + '" style="stroke: black; stroke-width: 2" />';
+				// layer_lines_gwt += '<line x1="' + String(0.92*soil_desc_width) + '" y1="' + String(data['borehole_metadata']['groundwater_depth'] * conv) + '" x2 ="' + String(0.98*soil_desc_width) + '" y2="' + String(data['borehole_metadata']['groundwater_depth'] * conv) + '" style="stroke: black; stroke-width: 2" />';
+
+                let layer_lines_gwt = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="${axis_width}" height="auto">
+                    <line x1="${0.15 * axis_width}" y1="${data['borehole_metadata']['groundwater_depth'] * conv + 6}" 
+                        x2="${0.05 * axis_width}" y2="${data['borehole_metadata']['groundwater_depth'] * conv - 1}" 
+                        style="stroke: blue; stroke-width: 2" />
+                    <line x1="${0.15 * axis_width}" y1="${data['borehole_metadata']['groundwater_depth'] * conv + 6}" 
+                        x2="${0.25 * axis_width}" y2="${data['borehole_metadata']['groundwater_depth'] * conv - 1}" 
+                        style="stroke: blue; stroke-width: 2" />
+                    <line x1="${0.05 * axis_width}" y1="${data['borehole_metadata']['groundwater_depth'] * conv - 1}" 
+                        x2="${0.25 * axis_width}" y2="${data['borehole_metadata']['groundwater_depth'] * conv - 1}" 
+                        style="stroke: blue; stroke-width: 2" />
+                    <line x1="${0.05 * axis_width}" y1="${data['borehole_metadata']['groundwater_depth'] * conv + 6}" 
+                        x2="${0.25 * axis_width}" y2="${data['borehole_metadata']['groundwater_depth'] * conv + 6}" 
+                        style="stroke: blue; stroke-width: 2" />
+                </svg>
+            `;
+
+                // Encode the SVG content as base64
+                let encoded_gwt = window.btoa(unescape(encodeURIComponent(layer_lines_gwt)));
+
+                // Set as background image
+                document.getElementById('depth_axis').style.backgroundImage = "url(data:image/svg+xml;base64," + encoded_gwt + ")";
+                document.getElementById('depth_axis').style.backgroundRepeat = "no-repeat";
+
+                // document.getElementById('depth_axis').style.width = axis_width - 5 + 'px';
+
+                // document.getElementById('depth_axis_label').style.width = axis_width + 'px';
+
+				
+				// Add vertical line on right side
+                layer_lines += '<line x1="' + String(0.99*soil_desc_width) + '" y1="1" x2="' + String(soil_desc_width) + '" y2="' + usableHeight + '" style="stroke:black; stroke-width:1" /></svg>';
+                let encoded = window.btoa(layer_lines);
+                
+                document.getElementById('soil_description').style.backgroundImage = "url(data:image/svg+xml;base64," + encoded + ")";
+
+                document.getElementById('soil_description').style.backgroundRepeat = "no-repeat";
+                document.getElementById('soil_description').style.width = soil_desc_width + 'px';
+
+                document.getElementById('soil_description_label').style.width = soil_desc_width + 'px';
+                
+                // document.getElementById('internal_blow_count').style.width = internal_blow_count_width + 'px';
+                // document.getElementById('sample_internal_blow_count_label').style.width = internal_blow_count_width + 'px';
+
+                cumulative_text_height = 0;
+                cumulative_layer_height = 0;
+                for (let i = 0; i < data['stratigraphy']['soil_description'].length; i++) {
+                    hatch_code = get_hatch_code(data['stratigraphy']['soil_description'][i]);
+                    let top_depth = data['stratigraphy']['stratum_depth_top'][i];
+                    let bottom_depth = data['stratigraphy']['stratum_depth_bottom'][i];
+                    let layer_height = (bottom_depth - top_depth) * conv;
+
+                    append_svg("images/" + hatch_code + ".svg?scale=" + scale, 'soil_hatches', "border: 1px solid black; width: 100%; height: " + layer_height + "px");
+
+                    // d3.xml("images/" + hatch_code + ".svg?scale=" + scale)
+                    //     .then(data => {
+                    //         d3.select("soil_hatches").node().attr("height", "50px").append(data.documentElement)
+                    //     })
+                    let text_height = Math.max(textHeights[i], layer_height - (cumulative_text_height - cumulative_layer_height));
+                    append_text(data['stratigraphy']['soil_description'][i], 'soil_description', "width: 100%; height: " + text_height + "px; font-size: 10px; text-align: left; padding-top: 2px; padding-bottom: 2px; padding-right: 10px; padding-left: 10px");
+                    // append_text(data['stratigraphy']['soil_classification'][i], 'soil_classification', "width: 100%; height: " + text_height + "px; font-size: 10px; text-align: center;");
+                    cumulative_text_height += text_height;
+                    cumulative_layer_height += layer_height;
+                }
+
+                // Calculate positions and styles
+                let endTextY = maxDepth * conv - 10; // Position based on maxDepth
+
+                // Line SVG data as a data URL with a specific width and height for better control
+                const lineSVGData = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
+                    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="2">
+                        <line x1="0" y1="1" x2="100%" y2="1" style="stroke: black; stroke-width: 2" />
+                    </svg>
+                `);
+
+                // Append a horizontal line above "End of Borelog" text
+                append_svg(lineSVGData, 'soil_description', "display: block; width: 100%; height: 1px");
+
+                // Append "End of Borelog" text below the line
+                append_text("End of Borelog", 'soil_description', "width: 100%; text-align: center; font-size: 12px; font-weight: bold;");
+
+
+                let last_bottom_depth = 0.0;
+                for (let i = 0; i < data['samples']['depth_top'].length; i++){
+                    let top_depth = data['samples']['depth_top'][i];
+                    let bottom_depth = data['samples']['depth_bottom'][i];
+                    let sample_height = (bottom_depth - top_depth) * conv;
+                    let blank_height = (top_depth - last_bottom_depth) * conv;
+                    const text_fields = ['sample_description','soil_classification','sampler_outer_diameter', 'sampler_inner_diameter','internal_blow_count', 'blow_count', 'energy_ratio', 'rod_length', 'liquid_limit', 'plastic_limit', 'dry_unit_weight', 'water_content', 'shear_strength', 'shear_strength_method'];
+                    const decimals = [0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0];
+                    append_svg("images/blank.svg", 'sample_hatches', "width: 100%; height: " + blank_height + "px");
+                    let sampler_type = data['samples']['sampler_type'][i]
+                    append_svg("images/" + sampler_type + '.svg', 'sample_hatches', "width: 100%; height: " + sample_height + "px");
+                    for(let j = 0; j<text_fields.length; j++){
+                        let value = data['samples'][text_fields[j]][i];
+                        if(value){
+                            if(decimals[j] > 0){
+                                value = value.toFixed(decimals[j]);
+                            }
+                        }
+                        append_svg("images/blank.svg", text_fields[j], "width: 100%; height: " + String(blank_height) + "px");
+                        append_text(value, text_fields[j], "width: 100%; height: " + String(sample_height) + "px; font-size: 10px; text-align: center;");
+                    }
+					append_svg("images/blank.svg", "nonplastic", "width: 100%; height: " + String(blank_height) + "px");
+					if(data['samples']['nonplastic'][i]){
+						append_text("x", "nonplastic", "width: 100%; height: " + String(sample_height) + "px; font-size: 10px; text-align: center;");
+					} else {
+						append_text("", "nonplastic", "width: 100%; height: " + String(sample_height) + "px; font-size: 10px; text-align: center;");
+					}
+                    last_bottom_depth = bottom_depth;
+                }
+
+            });
+            $('#plot').click();
+        });
+    </script>
+
+</head>
+<body>
+<div id="hidden_svg" hidden>
+    <svg id="soil_description_background"></svg>
+</div>
+<form id = "Top_form" style="width: 800px; margin: 0 auto;">
+	<!-- <p><label for="boringlogjson">Automatic Boring Log</label></p> -->
+    <textarea id="boringlogjson" rows="10" cols="105" hidden>
+        {
+        "borehole_metadata" : {},
+        "stratigraphy":{},
+        "samples":{}
+    }
+    </textarea><br>
+
+    <a href="Borelog_Template.xlsx" download="Borelog_Template.xlsx">Download Template Excel (.xlsx)</a><br>
+    <a href="Borelog_Template.json" download="Borelog_Template.json">Download Template JSON</a><br>
+    <input type="file" id="uploadExcel" accept=".xlsx, .xls, .json" style="margin-top: 5px;"/>
+    <label for="height" style="margin-bottom: 0px;" >Height (px)</label>
+    <input type="number" id="height" value="600" style="width: 50px; margin-bottom: 0px;">
+    <label for="width" style="margin-bottom: 0px;" >Width (px)</label>
+    <input type="number" id="width" value="800" style="width: 50px; margin-bottom: 0px" min="800" max="100000">
+    <span id="width-error" style="color: red; display: none;">Value must be greater than 800.</span>
+    <br/>
+    <label for="font_size" style="margin-bottom: 0px;">Font Size (px)</label>
+    <input type="number" id="font_size" value="10" style="width: 50px; margin-bottom: 0px">
+    <button type="button" id="plot" style="margin-bottom: 0px;">Plot</button>
+    <label for="file_name" style="margin-bottom: 0px;">File Name:</label>
+    <input type="text" id="file_name" value="Borelog" style="width: 100px; margin-bottom: 0px">
+    <button id="capture-btn" type="button" style="margin-bottom: 0px;">Capture Screenshot</button>
+	<br>
+    <button type="button" id="hideButton">Hide</button>
+</form>
+<div id="capture-div">
+    <div id="grid-container-header" class="grid-container-header" style="width: 800px; height: auto">
+        <div style = "grid-column: 1/4 center; display: flex; justify-content:space-around; align-items: center; font-weight: bold; border-bottom: 2px solid #999; padding-bottom: 5px; ">
+            <div id = "NSF" style="grid-column: 1 / 3;display: flex; flex-direction: column; justify-content: center; align-items: center">
+                <img src = "images/NSF_logo.png" style="width:auto; height: 100px;"/>
+    
+            </div>
+            <div id = "Logo_1" style="grid-column: 3 / 4;display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <img src = "images/UCLA_logo.jpg" style="width:auto; height: 70px;"/>
+    
+            </div>
+            <div id = "Logo_2" style="grid-column: 4 / 5;display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <img src = "images/Cal-Poly-Logo.png" style="width:auto; height: 70px;"/>
+            </div>
+            <div id = "Logo_3" style="grid-column: 5 / 6;display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <img src = "images/metu_logo.png" style="width:auto; height: 90px;"/>
+            </div>
+        <div>
+            </div>
+        
+        </div style = "padding: 5px">
+        <div id="project_name" style="grid-column: 1 / 4; padding: 5px; text-align: left; font-size: 14px; border-top: 1px;"></div>
+        <div id="site_name" style="grid-column: 1 / 2; padding: 5px; text-align: left"></div>
+        <div id="borehole_name" style="grid-column: 2 / 3; padding: 5px; text-align: left"></div>
+        <div id="longitude" style="grid-column: 3 / 4; padding: 5px; text-align: left"></div>
+        <div id="borehole_type" style="grid-column: 1 / 2; padding: 5px; text-align: left"></div>
+        <div id="borehole_diameter" style="grid-column: 2 / 3; padding: 5px; text-align: left"></div>
+        <div id="latitude" style="grid-column: 3 / 4; padding: 5px; text-align: left"></div>
+        <div id="rig" style="grid-column: 1 / 2; padding: 5px; text-align: left"></div>
+        <div id="logger" style="grid-column: 2 / 3; padding: 5px; text-align: left"></div>
+        <div id="date" style="grid-column: 3 / 4; padding: 5px; text-align: left"></div>
+        <div id="groundwater_depth" style="grid-column: 1 / 2; padding: 5px; text-align: left"></div>
+        <div id="depth_of_exploration" style="grid-column: 2 / 3; padding: 5px; text-align: left"></div>
+    </div>
+    <div id="grid-container-boring" class="grid-container-boring" style="width: 800px; height: 650px">
+        <div id="depth_axis_label" style="border: solid 1px; grid-column: 1 / 2; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Depth Scale [m]</span></div>
+        <div id="soil_hatches_label" style="border: solid 1px; grid-column: 2 / 3; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Lithology</span></div>
+        <div id="soil_description_label" style="border: solid 1px; grid-column: 3 / 4; grid-row: 1 / 2; display: flex; justify-content: center; align-items: center; font-style: italic; padding: 6px;">
+            <span style="writing-mode:horizontal-tb; transform: scale(1)">Soil Description</span>
+        </div>
+        <div id="sample_hatch_label" style="border: solid 1px; grid-column: 4 / 5; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Sample</span></div>
+        <div id="sample_description_label" style="border: solid 1px; grid-column: 5 / 6; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px; align-items: center;"><span style="writing-mode:horizontal-tb; transform: scale(1)">Sample Description</span></div>
+        <div id="soil_classification_label" style="border: solid 1px; grid-column: 6 / 7; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>USCS</span></div>
+        <div id="sample_outer_diameter_label" style="border: solid 1px; grid-column: 7 / 8; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Outer Diameter [cm]</span></div>
+        <div id="sample_inner_diameter_label" style="border: solid 1px; grid-column: 8 / 9; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Inner Diameter [cm]</span></div>
+        <div id="sample_internal_blow_count_label" style="border: solid 1px; grid-column: 9 / 10; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Internal Blowcounts</span></div>
+        <div id="sample_blow_count_label" style="border: solid 1px; grid-column: 10 / 11; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>SPT-N</span></div>
+        <div id="energy_ratio_label" style="border:solid 1px; grid-column: 11 / 12; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Energy Ratio [%]</span></div>
+        <div id="rod_length_label" style="border:solid 1px; grid-column: 12 / 13; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Rod Length [m]</span></div>
+        <div id="nonplastic_label" style="border:solid 1px; grid-column: 13 / 14; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Non-Plastic</span></div>
+        <div id="liquid_limit_label" style="border:solid 1px; grid-column: 14 / 15; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>LL</span></div>
+        <div id="plastic_limit_label" style="border:solid 1px; grid-column: 15 / 16; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>PL</span></div>
+        <div id="dry_unit_weight_label" style="border: solid 1px; grid-column: 16 / 17; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px">
+            <span>Dry Unit Weight [kN/m <sup style="font-size: 0.7em; line-height: 1; vertical-align: super;">3</sup>]</span>
+        </div>
+        <div id="water content_label" style="border:solid 1px; grid-column: 17 / 18; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Water Content [%]</span></div>
+        <div id="shear_strength_label" style="border:solid 1px; grid-column: 18 / 19; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Shear Strength [kN]</span></div>
+        <div id="shear_strength_method_label" style="border:solid 1px; grid-column: 19 / 20; grid-row: 1 / 2; display: flex; justify-content: center; font-style: italic; padding: 6px"><span>Shear Strength Method</span></div>
+
+        <div id="depth_axis" style="display: flex; grid-column: 1 / 2; grid-row: 2 / 3; margin-top: 15px; padding: 0; text-align: right"></div>
+        <div id="soil_hatches" style="grid-column: 2 / 3; grid-row: 2 / 3; margin-top: 20px; background-color: white;"></div>
+        <div id="soil_description" style="border: solid 1px; grid-column: 3 / 4; grid-row: 2 / 3; padding-top: 0; margin-top: 20px; background-image: url('#soil_description_background'); background-repeat: no-repeat"></div>
+        <div id="sample_hatches" style="border: solid 1px; grid-column: 4 / 5; grid-row: 2 / 3; padding: 0; margin-top: 20px; font-size: 0"></div>
+        <div id="sample_description" style="border: solid 1px; grid-column: 5 / 6; grid-row: 2 / 3; padding: 1px; margin-top: 20px"></div>
+        <div id="soil_classification" style="border: solid 1px; grid-column: 6 / 7; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="sampler_outer_diameter" style="border: solid 1px; grid-column: 7 / 8; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="sampler_inner_diameter" style="border: solid 1px; grid-column: 8 / 9; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="internal_blow_count" style="border: solid 1px; grid-column: 9 / 10; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="blow_count" style="border: solid 1px; grid-column: 10 / 11; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="energy_ratio" style="border:solid 1px; grid-column: 11 / 12; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="rod_length" style="border:solid 1px; grid-column: 12 / 13; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="nonplastic" style="border:solid 1px; grid-column: 13 / 14; grid-row: 2 / 3; padding: 0; margin-top: 20px; background-repeat: no-repeat"></div>
+        <div id="liquid_limit" style="border:solid 1px; grid-column: 14 / 15; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="plastic_limit" style="border:solid 1px; grid-column: 15 / 16; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="dry_unit_weight" style="border:solid 1px; grid-column: 16 / 17; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="water_content" style="border:solid 1px; grid-column: 17 / 18; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="shear_strength" style="border:solid 1px; grid-column: 18 / 19; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+        <div id="shear_strength_method" style="border:solid 1px; grid-column: 19 / 20; grid-row: 2 / 3; padding: 0; margin-top: 20px"></div>
+
+        <div id="soil_description_hidden" style="grid-column: 3 / 4; grid-row: 3 / 4; padding-left: 10px; padding-top: 0; padding-right: 10px; margin-top: 20px; "></div>
+        <div id="soil_hatches_hidden" style="grid-column: 2 / 3; grid-row: 3 / 4; padding: 0; margin-top: 20px; font-size:0"></div>
+    </div>
+</div>
+</body>
+</html>

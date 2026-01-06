@@ -1,0 +1,173 @@
+html {
+  box-sizing: border-box;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+body {
+	font-family: Arial, Helvetica, sans-serif;
+	background-color: #FFFFFF;
+}
+
+.error {
+    color: #FF0000;
+    text-align: center;
+    height: 20px
+}
+
+.grid-container-header {
+	background-color: #ffffff;
+	padding: 0px;
+	display: grid;
+	grid-gap: 0px;
+	grid-template-columns: repeat(3, 1fr);
+	width: 80%;
+	margin: 0 auto;
+	border: 2px solid #999;
+	box-sizing: border-box;
+	border-radius: 10px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	overflow: hidden;
+}
+
+.grid-container-boring {
+	background-color: #ffffff;
+	padding: 0px;
+	display: grid;
+	grid-gap: 0px;
+	grid-template-columns: 3fr 1fr 8fr 1fr 8fr 1fr 1fr 1fr 5fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+	grid-template-rows: 150px 1fr 0fr;
+	width: 100%;
+	margin: 0 auto;
+	border: 2px solid #999;
+	box-sizing: border-box;
+	border-radius: 10px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	overflow: hidden;
+}
+
+.grid-container-boring-header {
+	border: solid 1px;
+	display: flex;
+	justify-content: center;
+	grid-row: 1 / 2;
+}
+
+.grid-container-boring-header > span {
+	writing-mode: vertical-rl;
+	transform: scale(-1);
+	font-size: 12px;
+}
+
+.grid-container-header > div {
+	background-color: transparent;
+	padding: 0;
+	text-align: center;
+	font-size: 12px;
+	vertical-align: center;
+}
+
+.grid-container-boring > div > span {
+	writing-mode: vertical-rl;
+	transform: scale(-1);
+	font-size: 12px;
+}
+
+.rotated {
+	position: relative;
+	top: 50%;
+	left: 50%;
+	height: 100px;
+	margin-top: -1px;
+	margin-left: -100%;
+	text-align: center;
+	display: inline-block;
+	transform: translateX(-50%) rotate(-90deg);
+	border: solid 1px;
+}
+
+.grid-container-boring > div{
+	background-color: transparent;
+	padding: 0;
+	text-align: center;
+	font-size: 12px;
+	vertical-align: middle;
+	overflow: visible;
+}
+
+.grid-container-boring > div > span {
+	background-color: transparent;
+	padding: 0;
+	text-align: center;
+	font-size: 12px;
+	vertical-align: middle;
+}
+
+.grid-container-header > div > p {
+	background-color: transparent;
+	padding-top: 0;
+	padding-bottom: 0;
+	padding-left: 7px;
+	margin-top: 0;
+	margin-bottom: 0;
+	text-align: left;
+	font-size: 10px;
+	vertical-align: middle;
+}
+
+.vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+.grid-container-boring > div > p {
+	background-color: transparent;
+	padding-top: 0px;
+	padding-bottom: 0px;
+	padding-left: 0px;
+	margin-top: 0px;
+	margin-bottom: 0px;
+	text-align: left;
+	font-size: 10px;
+	vertical-align: middle;
+}
+
+object {
+	display: flex;
+	font-size: initial;
+}
+svg {
+	display: inline-block;
+	font-size: initial;
+	width: 100% !important;
+    height: 100% !important;
+    visibility: visible !important;
+}
+
+#soil_hatches div {
+    width: 100%;
+    height: auto;  /* Let the div height scale based on its contents */
+}
+
+#soil_hatches svg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;  /* Ensure the SVG scales correctly to fill the container */
+}
+
+.grid-container-metadata {
+	background-color: #ffffff;
+	display: grid;
+	grid-gap: 5px;
+	grid-template-columns: repeat(3, 1fr);
+	width: 800px;
+	margin: 0 auto;
+	border: 2px solid #999;
+	box-sizing: border-box;
+	padding: 10px;
+	border-radius: 10px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	overflow: hidden;
+	font-size: 16px;
+}
