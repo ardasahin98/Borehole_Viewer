@@ -114,13 +114,13 @@
                 let marginBottom = 20;
                 let scale = (width / 32) / 104;
 
-                $('#grid-container-header').width(width);
-                $('#grid-container-boring').width(width);
-                $('#grid-container-boring').height(height + 150);
-                $("#NSF").width(width/2)
-                $("#Logo_1").width(width/6)
-                $("#Logo_2").width(width/6)
-                $("#Logo_3").width(width/6)
+                // $('#grid-container-header').width(width);
+                // $('#grid-container-boring').width(width);
+                // $('#grid-container-boring').height(height + 150);
+                // $("#NSF").width(width/2)
+                // $("#Logo_1").width(width/6)
+                // $("#Logo_2").width(width/6)
+                // $("#Logo_3").width(width/6)
 
                 document.getElementById('soil_description_hidden').innerHTML = '';
                 $("#project_name").html('<strong>Project Name: </strong>' + data['borehole_metadata']['project_name']);
@@ -309,6 +309,41 @@
             });
             $('#plot').click();
         });
+        // Put this in your js/script.js (or any JS loaded after the DOM exists)
+        document.addEventListener("DOMContentLoaded", () => {
+        const btn = document.getElementById("logo_btn");
+        const fileInput = document.getElementById("uploadlogo");
+        const nameInput = document.getElementById("company_name");
+
+        // Target the existing header elements
+        const logoContainer = document.getElementById("NSF");       // currently contains the <img>
+        const textContainer = document.getElementById("UCLA_text"); // currently contains the <p>
+
+        btn.addEventListener("click", () => {
+            // 1) Update company name text
+            const newName = (nameInput.value || "").trim();
+            const p = textContainer.querySelector("p");
+            if (p) p.textContent = newName || " ";
+
+            // 2) Update logo image (if a file is selected)
+            const file = fileInput.files && fileInput.files[0];
+            if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                let img = logoContainer.querySelector("img");
+                if (!img) {
+                img = document.createElement("img");
+                img.style.height = "50px";
+                img.style.width = "auto";
+                logoContainer.innerHTML = "";
+                logoContainer.appendChild(img);
+                }
+                img.src = e.target.result; // data URL
+            };
+            reader.readAsDataURL(file);
+            }
+        });
+    });
     </script>
 
 </head>
@@ -327,39 +362,37 @@
     </textarea><br>
 
     <a href="Borelog_Template.xlsx" download="Borelog_Template.xlsx">Download Template Excel (.xlsx)</a><br>
-    <a href="Borelog_Template.json" download="Borelog_Template.json">Download Template JSON</a><br>
-    <input type="file" id="uploadExcel" accept=".xlsx, .xls, .json" style="margin-top: 5px;"/>
+    <a href="Borelog_Template.json" download="Borelog_Template.json">Download Template JSON</a><br><br/>
+    <input type="file" id="uploadExcel" accept=".xlsx,.xls,.json" style="display:none;" onchange="this.nextElementSibling.nextElementSibling.textContent=this.files.length?this.files[0].name:'No file selected';"><label for="uploadExcel" style="margin:5px;padding:6px 8px;background:#2774AE;color:#fff;cursor:pointer;">Upload Excel</label><span style="margin-left:8px;font-size:13px;color:#333;">No file selected</span>
+    <br/><br>
     <label for="height" style="margin-bottom: 0px;" >Height (px)</label>
     <input type="number" id="height" value="600" style="width: 50px; margin-bottom: 0px;">
     <label for="width" style="margin-bottom: 0px;" >Width (px)</label>
     <input type="number" id="width" value="800" style="width: 50px; margin-bottom: 0px" min="800" max="100000">
     <span id="width-error" style="color: red; display: none;">Value must be greater than 800.</span>
-    <br/>
     <label for="font_size" style="margin-bottom: 0px;">Font Size (px)</label>
     <input type="number" id="font_size" value="10" style="width: 50px; margin-bottom: 0px">
-    <button type="button" id="plot" style="margin-bottom: 0px;">Plot</button>
-    <label for="file_name" style="margin-bottom: 0px;">File Name:</label>
-    <input type="text" id="file_name" value="Borelog" style="width: 100px; margin-bottom: 0px">
-    <button id="capture-btn" type="button" style="margin-bottom: 0px;">Capture Screenshot</button>
+    <button type="button" id="plot" style="margin-bottom: 0px;">Plot</button><br/><br>
+    <input type="file" id="uploadlogo" accept=".png,.jpg,.jpeg" style="display:none;" onchange="this.nextElementSibling.nextElementSibling.textContent=this.files.length?this.files[0].name:'No file selected';"><label for="uploadlogo" style="margin:5px;padding:6px 8px;background:#2774AE;color:#fff;cursor:pointer;">Upload Image</label><span style="margin-left:8px;font-size:13px;color:#333;">No file selected</span><br/><br>
+
+    <label for="company_name" style="margin-bottom: 0px;">Company Name:</label>
+    <input type="text" id="company_name" value="University of California, Los Angeles" style="width: 300px; margin-bottom: 0px">
+    <button id="logo_btn" type="button" style="margin-bottom: 0px;">Change Logo and Name</button><br/>
 	<br>
-    <button type="button" id="hideButton">Hide</button>
+    <button type="button" id="hideButton">Hide</button><br/><br>
 </form>
 <div id="capture-div">
     <div id="grid-container-header" class="grid-container-header" style="width: 800px; height: auto">
-        <div style = "grid-column: 1/4 center; display: flex; justify-content:space-around; align-items: center; font-weight: bold; border-bottom: 2px solid #999; padding-bottom: 5px; ">
+        <div style = "grid-column: 1/4 center;     display: flex; justify-content: flex-start; align-items: center; font-weight: bold; border-bottom: 2px solid #999; padding: 5px; ">
             <div id = "NSF" style="grid-column: 1 / 3;display: flex; flex-direction: column; justify-content: center; align-items: center">
-                <img src = "images/NSF_logo.png" style="width:auto; height: 100px;"/>
+                <img src = "images/UCLA_logo.jpg" style="width:auto; height: 50px;"/>
     
             </div>
-            <div id = "Logo_1" style="grid-column: 3 / 4;display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                <img src = "images/UCLA_logo.jpg" style="width:auto; height: 70px;"/>
+            <div id = "UCLA_text" style="grid-column: 1 / 3;display: flex; flex-direction: column; justify-content: center; align-items: center">
+                    <p style="font-size: 18px;font-weight: bold;margin-left: 10px;line-height: 1.2;">
+                        University of California, Los Angeles
+                    </p>
     
-            </div>
-            <div id = "Logo_2" style="grid-column: 4 / 5;display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                <img src = "images/Cal-Poly-Logo.png" style="width:auto; height: 70px;"/>
-            </div>
-            <div id = "Logo_3" style="grid-column: 5 / 6;display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                <img src = "images/metu_logo.png" style="width:auto; height: 90px;"/>
             </div>
         <div>
             </div>
